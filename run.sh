@@ -1,0 +1,14 @@
+python main.py \
+  --dataset wadi \
+  --batch_size 128 \
+  --slide_window 13 \
+  --k_ss 8 \
+  --k_sa 3 \
+  --k_as 1 \
+  --k_aa 6 \
+  --d_hidden 512 \
+  --d_output_hidden 248 \
+  --num_heads 8 \
+  --num_output_layer 1 \
+  --nolog \
+  --model saves/wadi/best.pth
