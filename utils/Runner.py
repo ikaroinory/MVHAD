@@ -15,7 +15,7 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
-from data_types import EdgeType, NodeConfig
+from data_types import EdgeType, NodeInformation
 from datasets import MVHADDataset
 from models import MVHAD
 from .Arguments import Arguments
@@ -45,7 +45,7 @@ class Runner:
         self.__test_dataloader: DataLoader = test_dataloader
 
         with open(f'data/processed/{self.args.dataset}/node_config.json', 'r') as f:
-            self.node_config: dict[str, NodeConfig] = json.load(f)
+            self.node_config: dict[str, NodeInformation] = json.load(f)
         with open(f'data/processed/{self.args.dataset}/edge_types.json', 'r') as f:
             edge_types = json.load(f)
             edge_types: list[EdgeType] = [tuple(edge_type) for edge_type in edge_types]
@@ -251,7 +251,7 @@ class Runner:
     def __evaluate(self, model_name: Path) -> tuple[float, float, float, float, float]:
         Logger.info('Evaluating...')
 
-        self.__model.load_state_dict(torch.load(f'{model_name}', weights_only=True))
+        self.__model.load_state_dict(torch.load(f'{model_name}', weights_only=True, map_location=torch.device(self.args.device)))
 
         test_result = self.__valid_epoch(self.__test_dataloader)
         precision, recall, fpr, fnr, f1 = get_metrics(test_result, self.args.point_adjustment)

@@ -1,3 +1,3 @@
 from .EdgeType import EdgeType
-from .NodeConfig import NodeConfig
+from .NodeInformation import NodeInformation
 from .NodeType import NodeType

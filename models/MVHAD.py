@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor, nn
 
-from data_types import EdgeType, NodeConfig
+from data_types import EdgeType, NodeInformation
 from .GraphLayer import GraphLayer
 from .OutputLayer import OutputLayer
 
@@ -16,7 +16,7 @@ class MVHAD(nn.Module):
         num_output_layer: int,
         k_dict: dict[EdgeType, int],
         *,
-        node_config: dict[str, NodeConfig],
+        node_config: dict[str, NodeInformation],
         edge_types: list[EdgeType],
         dtype=None,
         device=None

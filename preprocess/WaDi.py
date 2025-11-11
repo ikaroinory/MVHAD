@@ -8,7 +8,7 @@ from numpy import ndarray
 from pandas import DataFrame
 from sklearn.preprocessing import MinMaxScaler
 
-from data_types import NodeConfig, NodeType
+from data_types import NodeInformation, NodeType
 from utils import Logger
 
 
@@ -50,7 +50,7 @@ def __normalize(train_data_df: DataFrame, test_data_df: DataFrame = None, *, nod
         return test_data_np
 
 
-def __preprocess(data_path: str, processed_data_path: str, sample_len: int = 10, train_df: DataFrame = None) -> DataFrame:
+def __preprocess(data_path: str, processed_data_path: str, sample_len: int, train_df: DataFrame = None) -> DataFrame:
     mode: str = 'train' if train_df is None else 'test'
 
     _processed_data_path = Path(processed_data_path)
@@ -60,12 +60,18 @@ def __preprocess(data_path: str, processed_data_path: str, sample_len: int = 10,
 
     # Load data
     Logger.info(f'Loading {data_path}...')
-    data_df = pd.read_excel(data_path, skiprows=[0], index_col=0)
+    data_df = pd.read_csv(data_path, skiprows=0 if mode == 'train' else 1, index_col=0)
+    data_df.rename(columns=lambda x: re.sub(r'\s+', '', x), inplace=True)
+    data_df.rename(columns=lambda x: 'Attack' if 'AttackLABLE' in x else x, inplace=True)
+    data_df = data_df.drop(columns=['Date', 'Time'])
+    data_df = data_df.drop(columns=['2_LS_001_AL', '2_LS_002_AL', '2_P_001_STATUS', '2_P_002_STATUS'])
     Logger.info(f'Loaded.')
 
     # Replace 'Normal' and 'Attack' with 0 and 1
     Logger.info(f'Replacing Normal and Attack with 0 and 1...')
-    data_df['Normal/Attack'] = data_df['Normal/Attack'].astype(str).str.replace(r'\s+', '', regex=True).map({'Normal': 0, 'Attack': 1})
+    if mode == 'train':
+        data_df['Attack'] = 0
+    data_df['Attack'] = data_df['Attack'].astype(str).str.replace(r'\s+', '', regex=True).map({'1': 0, '-1': 1})
     Logger.info(f'Replaced.')
 
     # Fill missing values
@@ -74,24 +80,15 @@ def __preprocess(data_path: str, processed_data_path: str, sample_len: int = 10,
     data_df.fillna(0, inplace=True)
     Logger.info(f'Filled.')
 
-    # Format the column name
-    data_df.rename(columns=lambda x: re.sub(r'\s+', '', x), inplace=True)
-
     # Generate node name list
     Logger.info(f'Generating node indices...')
-    node_names = [col for col in data_df.columns if col != 'Normal/Attack']
-    actuator_names = [name for name in node_names if re.compile(r'^(P\d+|MV\d+|UV\d+)$').match(name)]
+    node_names = [col for col in data_df.columns if col != 'Attack']
+    actuator_names = [name for name in node_names if name.endswith('STATUS') or 'LS' in name or name == 'PLANT_START_STOP_LOG']
     sensor_names = [name for name in node_names if name not in actuator_names]
 
-    node_indices_path = _processed_data_path.parent / 'node_indices.json'
-    with open(node_indices_path, 'w') as file:
-        node_indices: dict[NodeType, list] = {
-            'sensor': [data_df.columns.get_loc(sensor) for sensor in sensor_names],
-            'actuator': [data_df.columns.get_loc(actuator) for actuator in actuator_names]
-        }
-        file.write(json.dumps(node_indices, indent=2))
-    with open(_processed_data_path.parent / 'node_config.json', 'w') as file:
-        node_config: dict[NodeType, NodeConfig] = {
+    node_config_path = _processed_data_path.parent / 'node_config.json'
+    with open(node_config_path, 'w') as file:
+        node_config: dict[NodeType, NodeInformation] = {
             'sensor': {
                 'value_type': 'float',
                 'index': [data_df.columns.get_loc(sensor) for sensor in sensor_names]
@@ -102,13 +99,14 @@ def __preprocess(data_path: str, processed_data_path: str, sample_len: int = 10,
             }
         }
         file.write(json.dumps(node_config, indent=2))
-    Logger.info(f'Save to {node_indices_path} .')
+    Logger.info(f'Save to {node_config_path} .')
 
     # Scale data using MinMaxScaler
     Logger.info(f'Scaling data...')
-    data_labels = data_df['Normal/Attack']
-    data_df.drop(columns=['Normal/Attack'], inplace=True)
+    data_labels = data_df['Attack']
+    data_df.drop(columns=['Attack'], inplace=True)
     original_data_df = data_df.copy()
+    node_indices: dict[NodeType, list[int]] = {'sensor': node_config['sensor']['index'], 'actuator': node_config['actuator']['index']}
     if mode == 'train':
         data_np = __normalize(data_df, node_indices=node_indices)
     else:
@@ -149,7 +147,7 @@ def __preprocess(data_path: str, processed_data_path: str, sample_len: int = 10,
     return original_data_df
 
 
-def preprocess_swat(original_data_path: tuple[str, str], processed_data_path: tuple[str, str], sample_len: int = 11) -> None:
+def preprocess_WaDi(original_data_path: tuple[str, str], processed_data_path: tuple[str, str], sample_len: int = 11):
     original_train_data_path, original_test_data_path = original_data_path
     processed_train_data_path, processed_test_data_path = processed_data_path
 

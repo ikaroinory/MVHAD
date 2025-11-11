@@ -1,2 +1,3 @@
-from .swat import preprocess_swat
-from .wadi import preprocess_wadi
+from .BATADAL import preprocess_BATADAL
+from .SWaT import preprocess_SWaT
+from .WaDi import preprocess_WaDi
