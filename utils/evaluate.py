@@ -42,7 +42,7 @@ def __get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: 
         f1_score_list = 2 * precision * recall / (precision + recall + 1e-8)
         predict_labels = (test_error_score >= thresholds[f1_score_list.argmax()])
     else:
-        thresholds = torch.linspace(test_error_score.min(), test_error_score.max(), 10000)
+        thresholds = torch.linspace(test_error_score.min(), test_error_score.max(), 10000, device=test_error_score.device)
         predict_labels_batch = (test_error_score.unsqueeze(0) > thresholds.unsqueeze(-1))
         predict_labels_batch = __adjust_predict_labels(predict_labels_batch, actual_labels)
         f1s = binary_f1_score(
