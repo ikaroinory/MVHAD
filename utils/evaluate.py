@@ -30,14 +30,14 @@ def __get_total_error_score(result: tuple[Tensor, Tensor, Tensor], epsilon: floa
     return score.max(dim=-1)[0]
 
 
-def __get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: int = 0) -> tuple[float, float, float, float, float]:
+def __get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: bool = False) -> tuple[float, float, float, float, float]:
     test_error_score = __get_total_error_score(test_result)
 
     actual_labels = test_result[2]
 
     test_error_score = (test_error_score - test_error_score.min()) / (test_error_score.max() - test_error_score.min() + 1e-8)
 
-    if point_adjustment <= 0:
+    if not point_adjustment:
         precision, recall, thresholds = binary_precision_recall_curve(test_error_score, actual_labels, validate_args=False)
         f1_score_list = 2 * precision * recall / (precision + recall + 1e-8)
         predict_labels = (test_error_score >= thresholds[f1_score_list.argmax()])
@@ -64,8 +64,11 @@ def __get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: 
     return precision, recall, fpr, fnr, f1
 
 
-def get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: int) -> tuple[float, float, float, float, float, float]:
+def get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: bool) -> tuple[float, float, float, float, float, float | None]:
+    pa_f1 = None
+
     precision, recall, fpr, fnr, f1 = __get_metrics(test_result)
-    _, _, _, _, pa_f1 = __get_metrics(test_result, point_adjustment)
+    if point_adjustment:
+        _, _, _, _, pa_f1 = __get_metrics(test_result, True)
 
     return precision, recall, fpr, fnr, f1, pa_f1

@@ -248,27 +248,26 @@ class Runner:
         Logger.info(f' - Valid loss: {best_valid_loss:.8f}')
         Logger.info(f'Model save to {self.__model_path}')
 
-    def __evaluate(self, model_name: Path) -> tuple[float, float, float, float, float]:
+    def __evaluate(self, model_name: Path) -> tuple[float, float, float, float, float, float | None]:
         Logger.info('Evaluating...')
 
         self.__model.load_state_dict(torch.load(f'{model_name}', weights_only=True, map_location=torch.device(self.args.device)))
 
         test_result = self.__valid_epoch(self.__test_dataloader)
-        precision, recall, fpr, fnr, f1 = get_metrics(test_result, self.args.point_adjustment)
+        precision, recall, fpr, fnr, f1, pa_f1 = get_metrics(test_result, self.args.point_adjustment)
 
         Logger.info(f' - F1 score: {f1:.4f}')
+        if self.args.point_adjustment:
+            Logger.info(f' - PA-F1 score: {pa_f1:.4f}')
         Logger.info(f' - Precision: {precision:.4f}')
         Logger.info(f' - Recall: {recall:.4f}')
         Logger.info(f' - FPR: {fpr:.4f}')
         Logger.info(f' - FNR: {fnr:.4f}')
 
-        return precision, recall, fpr, fnr, f1
+        return precision, recall, fpr, fnr, f1, pa_f1
 
-    def run(self) -> tuple[float, float, float, float, float]:
+    def run(self) -> tuple[float, float, float, float, float, float | None]:
         if self.args.model_path is None:
             self.__train()
-            precision, recall, fpr, fnr, f1 = self.__evaluate(self.__model_path)
-        else:
-            precision, recall, fpr, fnr, f1 = self.__evaluate(Path(self.args.model_path))
 
-        return precision, recall, fpr, fnr, f1
+        return self.__evaluate(self.__model_path if self.args.model_path is None else Path(self.args.model_path))

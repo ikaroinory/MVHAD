@@ -41,7 +41,7 @@ class Arguments:
 
         self.early_stop: int = args.early_stop
 
-        self.point_adjustment: int = args.point_adjustment
+        self.point_adjustment: bool = args.point_adjustment
 
         self.log: bool = not args.nolog
 
@@ -79,7 +79,7 @@ class Arguments:
 
         parser.add_argument('--early_stop', type=int, default=100)
 
-        parser.add_argument('-pa', '--point_adjustment', type=int, default=10000)
+        parser.add_argument('-pa', '--point_adjustment', action='store_true')
 
         parser.add_argument('--nolog', action='store_true')
 
