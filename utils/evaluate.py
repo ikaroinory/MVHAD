@@ -3,7 +3,7 @@ from torch import Tensor
 from torchmetrics.functional.classification import binary_confusion_matrix, binary_f1_score, binary_precision, binary_precision_recall_curve, binary_recall
 
 
-def adjust_predict_labels(predict_labels: Tensor, actual_labels: Tensor) -> Tensor:
+def __adjust_predict_labels(predict_labels: Tensor, actual_labels: Tensor) -> Tensor:
     adjusted_pred = predict_labels.clone()
 
     zeros = torch.tensor([0], device=actual_labels.device)
@@ -20,7 +20,7 @@ def adjust_predict_labels(predict_labels: Tensor, actual_labels: Tensor) -> Tens
     return adjusted_pred
 
 
-def get_total_error_score(result: tuple[Tensor, Tensor, Tensor], epsilon: float = 1e-2) -> Tensor:
+def __get_total_error_score(result: tuple[Tensor, Tensor, Tensor], epsilon: float = 1e-2) -> Tensor:
     predict_result, actual_result, _ = result
 
     delta = (predict_result - actual_result).abs()
@@ -30,21 +30,21 @@ def get_total_error_score(result: tuple[Tensor, Tensor, Tensor], epsilon: float 
     return score.max(dim=-1)[0]
 
 
-def get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: bool) -> tuple[float, float, float, float, float]:
-    test_error_score = get_total_error_score(test_result)
+def __get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: int = 0) -> tuple[float, float, float, float, float]:
+    test_error_score = __get_total_error_score(test_result)
 
     actual_labels = test_result[2]
 
     test_error_score = (test_error_score - test_error_score.min()) / (test_error_score.max() - test_error_score.min() + 1e-8)
 
-    if not point_adjustment:
+    if point_adjustment <= 0:
         precision, recall, thresholds = binary_precision_recall_curve(test_error_score, actual_labels, validate_args=False)
         f1_score_list = 2 * precision * recall / (precision + recall + 1e-8)
         predict_labels = (test_error_score >= thresholds[f1_score_list.argmax()])
     else:
         thresholds = torch.linspace(test_error_score.min(), test_error_score.max(), 10000)
         predict_labels_batch = (test_error_score.unsqueeze(0) > thresholds.unsqueeze(-1))
-        predict_labels_batch = adjust_predict_labels(predict_labels_batch, actual_labels)
+        predict_labels_batch = __adjust_predict_labels(predict_labels_batch, actual_labels)
         f1s = binary_f1_score(
             predict_labels_batch,
             actual_labels.unsqueeze(0).expand(predict_labels_batch.shape[0], -1),
@@ -62,3 +62,10 @@ def get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: bo
     fpr = (fp / (fp + tn)).item()
 
     return precision, recall, fpr, fnr, f1
+
+
+def get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: int) -> tuple[float, float, float, float, float, float]:
+    precision, recall, fpr, fnr, f1 = __get_metrics(test_result)
+    _, _, _, _, pa_f1 = __get_metrics(test_result, point_adjustment)
+
+    return precision, recall, fpr, fnr, f1, pa_f1
