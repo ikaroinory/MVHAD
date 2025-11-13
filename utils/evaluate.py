@@ -1,29 +1,22 @@
-import copy
-
-import numpy as np
-from sklearn.metrics import confusion_matrix, f1_score, precision_recall_curve, precision_score, recall_score
+import torch
 from torch import Tensor
-from tqdm import tqdm
+from torchmetrics.functional.classification import binary_confusion_matrix, binary_f1_score, binary_precision, binary_precision_recall_curve, binary_recall
 
 
-def adjust_pred(pred, label):
-    adjusted_pred = copy.deepcopy(pred)
+def adjust_predict_labels(predict_labels: Tensor, actual_labels: Tensor) -> Tensor:
+    adjusted_pred = predict_labels.clone()
 
-    anomaly_state = False
-    anomaly_count = 0
-    for i in range(len(adjusted_pred)):
-        if label[i] and adjusted_pred[i] and not anomaly_state:
-            anomaly_state = True
-            anomaly_count += 1
-            for j in range(i, 0, -1):
-                if not label[j]:
-                    break
-                if not adjusted_pred[j]:
-                    adjusted_pred[j] = True
-        elif not label[i]:
-            anomaly_state = False
-        if anomaly_state:
-            adjusted_pred[i] = True
+    zeros = torch.tensor([0], device=actual_labels.device)
+    pad_labels = torch.cat([zeros, actual_labels, zeros])
+    starts = (pad_labels[1:] & ~pad_labels[:-1]).nonzero().squeeze(dim=-1)
+    ends = (~pad_labels[1:] & pad_labels[:-1]).nonzero().squeeze(dim=-1)
+
+    for start, end in zip(starts, ends):
+        adjusted_pred[:, start:end] = torch.where(
+            predict_labels[:, start:end].any(dim=-1).unsqueeze(-1),
+            torch.tensor(1, device=predict_labels.device),
+            adjusted_pred[:, start:end]
+        )
     return adjusted_pred
 
 
@@ -40,34 +33,32 @@ def get_total_error_score(result: tuple[Tensor, Tensor, Tensor], epsilon: float 
 def get_metrics(test_result: tuple[Tensor, Tensor, Tensor], point_adjustment: bool) -> tuple[float, float, float, float, float]:
     test_error_score = get_total_error_score(test_result)
 
-    actual_labels = test_result[2].cpu()
+    actual_labels = test_result[2]
 
-    test_error_score = test_error_score.cpu()
+    test_error_score = (test_error_score - test_error_score.min()) / (test_error_score.max() - test_error_score.min() + 1e-8)
 
     if not point_adjustment:
-        precision, recall, thresholds = precision_recall_curve(actual_labels, test_error_score)
+        precision, recall, thresholds = binary_precision_recall_curve(test_error_score, actual_labels, validate_args=False)
         f1_score_list = 2 * precision * recall / (precision + recall + 1e-8)
-
-        best_index = f1_score_list.argmax()
-        best_threshold = thresholds[best_index]
-        predict_labels = (test_error_score >= best_threshold)
+        predict_labels = (test_error_score >= thresholds[f1_score_list.argmax()])
     else:
-        thresholds = np.linspace(test_error_score.min(), test_error_score.max(), 10000)
-        f1_list = []
-        for threshold in tqdm(thresholds):
-            predict_labels = (test_error_score > threshold)
-            predict_labels = adjust_pred(predict_labels, actual_labels)
-            f1_list.append(f1_score(actual_labels, predict_labels))
-        best_threshold = thresholds[np.argmax(f1_list)]
-        predict_labels = (test_error_score > best_threshold)
-        predict_labels = adjust_pred(predict_labels, actual_labels)
+        thresholds = torch.linspace(test_error_score.min(), test_error_score.max(), 10000)
+        predict_labels_batch = (test_error_score.unsqueeze(0) > thresholds.unsqueeze(-1))
+        predict_labels_batch = adjust_predict_labels(predict_labels_batch, actual_labels)
+        f1s = binary_f1_score(
+            predict_labels_batch,
+            actual_labels.unsqueeze(0).expand(predict_labels_batch.shape[0], -1),
+            multidim_average='samplewise',
+            validate_args=False
+        )
+        predict_labels = predict_labels_batch[f1s.argmax()]
 
-    tn, fp, fn, tp = confusion_matrix(actual_labels, predict_labels).ravel()
+    tn, fp, fn, tp = binary_confusion_matrix(predict_labels, actual_labels).ravel()
 
-    f1 = f1_score(actual_labels, predict_labels)
-    precision = precision_score(actual_labels, predict_labels)
-    recall = recall_score(actual_labels, predict_labels)
-    fnr = fn / (fn + tp)
-    fpr = fp / (fp + tn)
+    f1 = binary_f1_score(predict_labels, actual_labels, validate_args=False).item()
+    precision = binary_precision(predict_labels, actual_labels, validate_args=False).item()
+    recall = binary_recall(predict_labels, actual_labels, validate_args=False).item()
+    fnr = (fn / (fn + tp)).item()
+    fpr = (fp / (fp + tn)).item()
 
     return precision, recall, fpr, fnr, f1
