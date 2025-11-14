@@ -7,7 +7,7 @@ from loguru import logger
 class Logger:
     @staticmethod
     def init(log_name: str | Path = None):
-        format_str = '<g>{time:YYYY-MM-DD HH:mm:ss.SSS}</g> <r>|</r> <level>{level: <8}</level> <r>|</r> {message}'
+        format_str = '<g>{time:YYYY-MM-DD HH:mm:ss.SSS}</g> <r>|</r> <level>{level: <8}</level> <r>|</r> <level>{message}</level>'
         logger.remove()
         logger.add(sys.stdout, format=format_str)
 
