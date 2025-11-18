@@ -1,9 +1,9 @@
 import argparse
 
-from preprocess import preprocess_BATADAL, preprocess_SWaT, preprocess_WaDi
+from preprocess import preprocess_BATADAL, preprocess_HAI, preprocess_SWaT, preprocess_WaDi
 
 parser = argparse.ArgumentParser()
-parser.add_argument('dataset', choices=['SWaT', 'WaDi', 'BATADAL'], type=str)
+parser.add_argument('dataset', type=str)
 args = parser.parse_args()
 
 if args.dataset == 'SWaT':
@@ -18,5 +18,9 @@ elif args.dataset == 'BATADAL':
     original_data_path = ('data/original/BATADAL/BATADAL_dataset03.csv', 'data/original/BATADAL/BATADAL_dataset04.csv')
     processed_data_path = ('data/processed/BATADAL/train.csv', 'data/processed/BATADAL/test.csv')
     preprocess_BATADAL(original_data_path, processed_data_path)
+elif args.dataset == 'HAI':
+    original_data_path = 'data/original/HAI'
+    processed_data_path = 'data/processed/HAI'
+    preprocess_HAI(original_data_path, processed_data_path)
 else:
     parser.error(f'Processing the \'{args.dataset}\' dataset is not currently supported.')
