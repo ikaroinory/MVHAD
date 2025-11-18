@@ -20,7 +20,7 @@ from datasets import MVHADDataset
 from models import MVHAD
 from .Arguments import Arguments
 from .Logger import Logger
-from .MinNormSolver import MinNormSolver
+from .MGDA import MinNormSolver
 from .evaluate import get_metrics
 
 
