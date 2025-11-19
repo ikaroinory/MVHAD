@@ -146,8 +146,10 @@ class Runner:
             x = x.to(self.args.device)
             y = y.to(self.args.device)
 
-            grads = {'sensor': [], 'actuator': []}
+            grads: dict[str, list] = {'sensor': [], 'actuator': []}
 
+            self.__sensor_optimizer.zero_grad()
+            self.__actuator_optimizer.zero_grad()
             self.__share_optimizer.zero_grad()
 
             sensor_output, actuator_output = self.__model(x)
@@ -165,7 +167,7 @@ class Runner:
                 if parameters.grad is not None and 'actuator' in name and 'output' in name:
                     grads['actuator'].append(Variable(parameters.grad.data.clone(), requires_grad=True))
 
-            alpha = MinNormSolver.find_min_norm_element(list(grads.values()))
+            alpha = MinNormSolver.find_min_norm_element(list(grads.values()), sensor_loss.data, actuator_loss.data)
 
             loss = alpha[0] * sensor_loss + alpha[1] * actuator_loss
             loss.backward()

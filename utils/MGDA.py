@@ -1,7 +1,20 @@
 import torch
+from torch import Tensor
 
 
 class MinNormSolver:
+    @staticmethod
+    def __gradient_normalizers(grads: list[list[Tensor]], loss_list: list[Tensor]):
+        normed_grads = []
+
+        for grad_group, loss in zip(grads, loss_list):
+            gn = loss * torch.sqrt(sum(g.pow(2).sum() for g in grad_group))
+
+            # Normalize each gradient in the group
+            normed_grads.append([g / gn for g in grad_group])
+
+        return normed_grads
+
     @staticmethod
     def _min_norm_element_from2(v1v1, v1v2, v2v2):
         if v1v2 >= v1v1:
@@ -47,10 +60,12 @@ class MinNormSolver:
         return sol
 
     @staticmethod
-    def find_min_norm_element(vecs):
+    def find_min_norm_element(vecs: list[list[Tensor]], sensor_loss: Tensor, actuator_loss: Tensor):
+        normed_grads = MinNormSolver.__gradient_normalizers(vecs, [sensor_loss, actuator_loss])
+
         n = len(vecs)  # always 2
 
-        sol = MinNormSolver._min_norm_2d(vecs)
+        sol = MinNormSolver._min_norm_2d(normed_grads)
 
         sol_vec = torch.zeros(n)
         sol_vec[sol[0][0]] = sol[1]
