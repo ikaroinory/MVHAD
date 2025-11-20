@@ -11,7 +11,6 @@ class MVHAD(nn.Module):
         self,
         sequence_len: int,
         d_hidden: int,
-        d_output_hidden: int,
         num_heads: int,
         num_output_layer: int,
         k_dict: dict[EdgeType, int],
@@ -64,8 +63,8 @@ class MVHAD(nn.Module):
             nn.BatchNorm1d(d_hidden),
             nn.ReLU()
         )
-        self.sensor_output_layer = OutputLayer(d_input=d_hidden, d_hidden=d_output_hidden, d_output=1, num_layers=num_output_layer)
-        self.actuator_output_layer = OutputLayer(d_input=d_hidden, d_hidden=d_output_hidden, d_output=3, num_layers=num_output_layer)
+        self.sensor_output_layer = OutputLayer(d_input=d_hidden, d_hidden=d_hidden, d_output=1, num_layers=num_output_layer)
+        self.actuator_output_layer = OutputLayer(d_input=d_hidden, d_hidden=d_hidden, d_output=3, num_layers=num_output_layer)
 
         self.dtype = dtype
         self.device = device

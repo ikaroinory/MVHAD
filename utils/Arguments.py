@@ -30,7 +30,6 @@ class Arguments:
         }
 
         self.d_hidden: int = args.d_hidden
-        self.d_output_hidden: int = args.d_output_hidden
 
         self.num_heads: int = args.num_heads
         self.num_output_layer: int = args.num_output_layer
@@ -68,7 +67,6 @@ class Arguments:
         parser.add_argument('--k_aa', type=int, default=10)
 
         parser.add_argument('--d_hidden', type=int, default=64)
-        parser.add_argument('--d_output_hidden', type=int, default=205)
 
         parser.add_argument('--num_heads', type=int, default=8)
         parser.add_argument('--num_output_layer', type=int, default=1)

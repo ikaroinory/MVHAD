@@ -54,7 +54,6 @@ class Runner:
         self.__model = MVHAD(
             sequence_len=self.args.slide_window,
             d_hidden=self.args.d_hidden,
-            d_output_hidden=self.args.d_output_hidden,
             num_heads=self.args.num_heads,
             num_output_layer=self.args.num_output_layer,
             k_dict=self.args.k_dict,
