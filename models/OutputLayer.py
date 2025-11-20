@@ -8,11 +8,11 @@ class OutputLayer(nn.Module):
         self.num_layers = num_layers
 
         self.mlp = nn.ModuleList()
-        for i in range(num_layers):
+        for i in range(num_layers - 1):
             self.mlp.append(nn.Linear(d_input if i == 0 else d_hidden, d_hidden))
             self.mlp.append(nn.BatchNorm1d(d_hidden))
             self.mlp.append(nn.ReLU())
-        self.output_linear = nn.Linear(d_hidden, d_output)
+        self.output_linear = nn.Linear(d_input if num_layers == 1 else d_hidden, d_output)
 
     def forward(self, x: Tensor) -> Tensor:
         batch_size, num_nodes, d_input = x.shape
