@@ -2,52 +2,12 @@ import json
 import re
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
-from numpy import ndarray
 from pandas import DataFrame
-from sklearn.preprocessing import MinMaxScaler
 
 from data_types import NodeInformation, NodeType
 from utils import Logger
-
-
-def __downsample(data_np: ndarray, labels_np: ndarray, sample_len: int) -> tuple[ndarray, ndarray]:
-    sequence_len, num_nodes = data_np.shape
-
-    new_len = (sequence_len // sample_len) * sample_len
-    data_np = data_np[:new_len]
-    labels_np = labels_np[:new_len]
-
-    data_np = data_np.reshape(-1, sample_len, num_nodes)
-    downsampled_data_np = np.median(data_np, axis=1)
-
-    labels_np = labels_np.reshape(-1, sample_len)
-    downsampled_labels_np = np.max(labels_np, axis=1).round()
-
-    return downsampled_data_np, downsampled_labels_np
-
-
-def __normalize(train_data_df: DataFrame, test_data_df: DataFrame = None, *, node_indices: dict[NodeType, list[int]]) -> ndarray:
-    train_data_np = train_data_df.to_numpy()
-
-    normalizer = MinMaxScaler()
-    normalizer.fit(train_data_np[:, node_indices['sensor']])
-
-    if test_data_df is None:
-        sensor_train_data_np = normalizer.transform(train_data_np[:, node_indices['sensor']])
-
-        train_data_np[:, node_indices['sensor']] = sensor_train_data_np
-
-        return train_data_np
-    else:
-        test_data_np = test_data_df.to_numpy()
-
-        sensor_test_data_np = normalizer.transform(test_data_np[:, node_indices['sensor']])
-
-        test_data_np[:, node_indices['sensor']] = sensor_test_data_np
-
-        return test_data_np
+from .core import downsample, normalize
 
 
 def __preprocess(data_path: str, processed_data_path: str, sample_len: int = 10, train_df: DataFrame = None) -> DataFrame:
@@ -109,16 +69,16 @@ def __preprocess(data_path: str, processed_data_path: str, sample_len: int = 10,
     original_data_df = data_df.copy()
     node_indices: dict[NodeType, list[int]] = {'sensor': node_config['sensor']['index'], 'actuator': node_config['actuator']['index']}
     if mode == 'train':
-        data_np = __normalize(data_df, node_indices=node_indices)
+        data_np = normalize(data_df, node_indices=node_indices)
     else:
-        data_np = __normalize(train_df, data_df, node_indices=node_indices)
+        data_np = normalize(train_df, data_df, node_indices=node_indices)
 
     Logger.info(f'Scaled.')
     data_df = pd.DataFrame(data_np, columns=data_df.columns)
 
     # Down-sample
     Logger.info('Down-sampling...')
-    downsampled_data_np, downsampled_labels_np = __downsample(data_np, data_labels.to_numpy(), sample_len)
+    downsampled_data_np, downsampled_labels_np = downsample(data_np, data_labels.to_numpy(), sample_len)
     data_df = pd.DataFrame(downsampled_data_np, columns=data_df.columns)
     data_df['Attack'] = downsampled_labels_np
     Logger.info('Down-sampled.')
